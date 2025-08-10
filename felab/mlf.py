@@ -44,7 +44,7 @@ import mpmath as _mp
 
 
 Number = Union[float, complex]
-ArrayLike = Union[Number, Iterable[Number], "._np.ndarray"]
+ArrayLike = Union[Number, Iterable[Number], _np.ndarray]
 
 
 # ------------------------------- HELPERS ----------------------------------- #
