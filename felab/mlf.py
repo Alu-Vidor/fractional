@@ -210,7 +210,16 @@ def mittag_leffler(alpha: float,
 
     # Scalar path
     if _np.isscalar(z):
-        return _mlf_scalar(alpha, beta, z, tol, max_terms, z_switch, max_asymp)
+        # _mlf_scalar always returns a complex number. For real inputs the
+        # imaginary part should be numerically zero. Converting such values to
+        # ``float`` was previously done by callers and could fail with
+        # ``TypeError`` when a tiny imaginary component was present (e.g. due to
+        # rounding).  Cast to real here when appropriate so scalar evaluations
+        # behave like the vectorised branch below.
+        val = _mlf_scalar(alpha, beta, z, tol, max_terms, z_switch, max_asymp)
+        if abs(val.imag) < 1e-15:
+            return val.real
+        return val
 
     # Vectorized path
     z_arr = _np.asarray(z)
