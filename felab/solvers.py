@@ -29,7 +29,7 @@ API:
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Dict, Literal, Optional, Tuple
+from typing import Dict, Literal, Optional, Tuple, List
 
 import numpy as np
 
@@ -158,6 +158,8 @@ def _build_preconditioner(K: Array, kind: Optional[str]):
 def _solve_iterative(K: Array, b: Array, backend: str, opts: SolveOptions, spd_hint: bool) -> Tuple[Array, Dict]:
     """
     Решить итерационным методом (CG/MINRES). Требует SciPy.
+
+    В процессе решения печатаются нормы остатка для контроля сходимости.
     """
     from scipy.sparse.linalg import cg, minres  # type: ignore
 
@@ -165,21 +167,28 @@ def _solve_iterative(K: Array, b: Array, backend: str, opts: SolveOptions, spd_h
     M = _build_preconditioner(K, opts.preconditioner)
     tol = max(opts.atol, opts.rtol)
 
-    info: Dict = {"backend": backend, "it": None, "resid": None}
-    if backend == "cg":
-        x, exit_code = cg(Aop, b, rtol=tol, maxiter=opts.maxiter, M=M)
-        info["exit_code"] = int(exit_code)
-        # В SciPy cg не возвращает остаток напрямую; можно оценить апостериорно
-        r = b - K @ x
-        info["resid"] = float(np.linalg.norm(r))
-        info["it"] = None  # не всегда доступно
-        return x, info
+    res_hist: List[float] = []
 
-    # MINRES для симметричных (даже не SPD) матриц
-    x, exit_code = minres(Aop, b, tol=tol, maxiter=opts.maxiter, M=M, shift=0.0)
-    info["exit_code"] = int(exit_code)
+    def _callback(xk: Array) -> None:
+        r = b - K @ xk
+        resid = float(np.linalg.norm(r))
+        res_hist.append(resid)
+        print(f"[{backend}] iter {len(res_hist)} resid={resid:.3e}")
+
+    info: Dict = {"backend": backend, "it": None, "resid": None, "res_hist": res_hist}
+    if backend == "cg":
+        x, exit_code = cg(Aop, b, rtol=tol, maxiter=opts.maxiter, M=M, callback=_callback)
+        info["exit_code"] = int(exit_code)
+    else:
+        # MINRES для симметричных (даже не SPD) матриц
+        x, exit_code = minres(Aop, b, tol=tol, maxiter=opts.maxiter, M=M, shift=0.0, callback=_callback)
+        info["exit_code"] = int(exit_code)
+
+    # финальный остаток
     r = b - K @ x
-    info["resid"] = float(np.linalg.norm(r))
+    resid_final = float(np.linalg.norm(r))
+    info["resid"] = resid_final
+    info["it"] = len(res_hist)
     return x, info
 
 

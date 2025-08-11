@@ -123,6 +123,7 @@ def solve(
     Solution
         Объект с методами evaluate(), grid() и diagnostics().
     """
+    print("[api.solve] building basis...")
     # 1) Построить базис
     B = build_basis(
         N=N,
@@ -138,13 +139,17 @@ def solve(
         gs_stable=True,
         gs_reg=0.0,
     )
+    print(f"[api.solve] basis built with {B.size} functions")
 
     # 2) Собрать систему K c = b
+    print("[api.solve] assembling system...")
     K, b, extras = assemble_system(B, f_fun=f, u0=u0)
 
     # 3) Решить систему
+    print("[api.solve] solving linear system...")
     opts = solver or SolveOptions()
     x, info = solve_system(K, b, options=opts, spd_hint=extras.SPD_hint)
+    print(f"[api.solve] solver finished: backend={info.get('backend')} resid={info.get('resid')}")
 
     # 4) Упаковать результат
     return Solution(basis=B, coeffs=x, u0=u0, backend_info=info)

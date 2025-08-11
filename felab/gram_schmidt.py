@@ -216,7 +216,9 @@ def orthonormalize_energy(
     Q: List[Func] = []        # накопленный ортонормированный базис ψ
     P0 = [phi0]               # подпространство, от которого проектируемся изначально
 
-    for pk in raw_funcs:
+    print(f"[gram_schmidt] start orthonormalization of {len(raw_funcs)} functions")
+
+    for idx, pk in enumerate(raw_funcs):
         f = LinComb.from_single(pk)
 
         # 1) Снятие компоненты вдоль φ0
@@ -270,16 +272,22 @@ def orthonormalize_energy(
                         f = _project_sequential(f, Q, inner)
                 it += 1
 
+            if it > 0:
+                print(f"[gram_schmidt] enforced zero at step {idx+1} after {it} corrections")
+
         # 5) Нормировка
         nrm = _norm(inner, f)
         if not np.isfinite(nrm) or nrm < orth_tol:
             # Слишком слабый (линейно зависимый) вектор — пропускаем
+            print(f"[gram_schmidt] skip raw {idx+1}: norm={nrm:.3e}")
             continue
         f.scale_inplace(1.0 / nrm)
 
         # 6) Добавляем в базис
         Q.append(f)
+        print(f"[gram_schmidt] added psi_{len(Q)} with norm={nrm:.3e}")
 
+    print(f"[gram_schmidt] finished with {len(Q)} functions")
     return Q
 
 
