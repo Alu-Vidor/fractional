@@ -151,8 +151,22 @@ def inner_energy(
     # Интегрируем по квадратуре
     Du_x = Du(x)
     Dv_x = Dv(x)
-    term_energy = float(np.dot(w, Du_x * Dv_x))
-    term_mass = float(np.dot(w, a(x) * u_fun(x) * v_fun(x)))
+    with np.errstate(over="ignore", invalid="ignore"):
+        energy_vec = Du_x * Dv_x
+    if not np.all(np.isfinite(energy_vec)):
+        raise FloatingPointError(
+            "overflow in energy integrand; check fractional derivatives"
+        )
+
+    with np.errstate(over="ignore", invalid="ignore"):
+        mass_vec = a(x) * u_fun(x) * v_fun(x)
+    if not np.all(np.isfinite(mass_vec)):
+        raise FloatingPointError(
+            "overflow in mass integrand; check functions or coefficient"
+        )
+
+    term_energy = float(np.dot(w, energy_vec))
+    term_mass = float(np.dot(w, mass_vec))
     return (eps ** alpha) * term_energy + term_mass
 
 

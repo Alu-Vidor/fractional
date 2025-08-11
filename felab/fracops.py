@@ -111,7 +111,14 @@ def caputo_pi_on_grid(
     # Предвычислим шаги и разности
     h = np.diff(t)                      # shape (M,)
     du = np.diff(u)                     # shape (M,)
-    ratio = du / h                      # shape (M,)
+    # Деление может переполнить при очень малых шагах/больших разностях.
+    with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
+        ratio = np.divide(du, h, out=np.zeros_like(du), where=h != 0)
+    if not np.all(np.isfinite(ratio)):
+        raise FloatingPointError(
+            "overflow in du/h while computing Caputo derivative; "
+            "check nodes spacing or function values"
+        )
 
     # Внешняя петля по j (узел x_j)
     # Можно ускорить O(M^2) → O(M log M) через свёртки на равномерных сетках; здесь — общая неравномерная версия.
