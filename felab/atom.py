@@ -73,10 +73,13 @@ class Phi0:
         """
         Возвращает φ₀(x;ε) = E_α(lam * x^α). Сохраняет действительность для x≥0.
         """
-        xv = np.asarray(x, dtype=float)
+        xv = np.asarray(np.real_if_close(x, tol=1000), dtype=float)
         # Для x=0: E_α(0)=1
         z = self.lam * np.power(np.clip(xv, 0.0, np.inf), self.alpha, where=(xv >= 0), out=np.zeros_like(xv))
-        val = _Ealpha(self.alpha, z)
+        # Switch to asymptotics for moderately large negative arguments
+        val = _Ealpha(self.alpha, z, z_switch=5.0)
+        # _Ealpha может дать численно мнимую часть ~1e-16; убираем её безопасно
+        val = np.real_if_close(val, tol=1000)
         # _Ealpha возвращает ndarray того же shape; гарантируем float для скаляра
         if np.isscalar(x):
             return float(val)  # type: ignore
